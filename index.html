@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Relation between SNR-Integrated time</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one column — comparison viewer (canvas, adjustable), frame-count pickers, then charts. */
+:root{
+  --bg:#eef0f3; --panel:#f8f9fb; --ink:#1b2130; --muted:#5d6577; --line:#d4d8e0;
+  --accent:#b7701c; --cool:#3d5f9e; --plot:#ffffff;
+  --display:"Fraunces", Georgia, serif;
+  --body:"IBM Plex Sans", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1219; --panel:#161b25; --ink:#e4e7ee; --muted:#9aa3b5; --line:#2a3242;
+  --accent:#e0a050; --cool:#7f9fdc; --plot:#121722; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1219; --panel:#161b25; --ink:#e4e7ee; --muted:#9aa3b5; --line:#2a3242;
+  --accent:#e0a050; --cool:#7f9fdc; --plot:#121722; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 48px;display:flex;flex-direction:column;gap:26px}
+h1{font-family:var(--display);font-weight:600;font-size:clamp(24px,3.6vw,36px);line-height:1.2;margin:0;text-wrap:balance}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:var(--muted)}
+header{display:flex;flex-direction:column;gap:8px}
+button:focus-visible,[role="slider"]:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.tabs{display:flex;flex-wrap:wrap;gap:6px}
+.tabs button{font:500 13.5px var(--body);color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:999px;padding:5px 13px;cursor:pointer}
+.tabs button[aria-pressed="true"]{color:var(--bg);background:var(--ink);border-color:var(--ink)}
+
+.viewer{display:flex;flex-direction:column;gap:12px}
+.frame{position:relative;width:100%;aspect-ratio:3/2;background:#000;border-radius:6px;overflow:hidden;user-select:none;touch-action:none;cursor:ew-resize}
+.frame.full{aspect-ratio:1556/1042}
+.frame canvas{position:absolute;inset:0;width:100%;height:100%}
+.frame .left{clip-path:inset(0 calc(100% - var(--split,50%)) 0 0)}
+.divider{position:absolute;top:0;bottom:0;left:var(--split,50%);width:2px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.35);transform:translateX(-1px)}
+.divider::after{content:"";position:absolute;top:50%;left:50%;width:26px;height:26px;border-radius:50%;background:#fff;transform:translate(-50%,-50%);box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.tag{position:absolute;top:10px;font:500 12px var(--mono);color:#fff;background:rgba(0,0,0,.55);padding:3px 8px;border-radius:4px}
+.tag.l{left:10px}.tag.r{right:10px}
+
+.pickers{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:700px){.pickers{grid-template-columns:1fr}}
+.panel{display:flex;flex-direction:column;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;min-width:0}
+.panel .head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.panel .side{font:600 13px var(--body)}
+.panel .stat{font:12.5px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.dial{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:3px}
+@media (max-width:440px){.dial{grid-template-columns:repeat(6,minmax(0,1fr))}}
+.dial button{font:500 12.5px var(--mono);font-variant-numeric:tabular-nums;padding:6px 0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:4px;cursor:pointer}
+.dial.l button[aria-pressed="true"]{background:var(--cool);border-color:var(--cool);color:#fff}
+.dial.r button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+
+.adjust{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 18px;align-items:end}
+.adjust label{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--muted)}
+.adjust label span{display:flex;justify-content:space-between;gap:8px}
+.adjust output{font-family:var(--mono);color:var(--ink);font-variant-numeric:tabular-nums}
+.adjust input[type=range]{width:100%;accent-color:var(--accent)}
+.adjust .reset{justify-self:start;font:500 13px var(--body);padding:6px 14px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;cursor:pointer}
+
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
+figure{margin:0;display:flex;flex-direction:column;gap:6px;min-width:0}
+figure.wide{grid-column:1/-1}
+figcaption{font-size:13px;color:var(--muted)}
+svg.plot{width:100%;height:auto;background:var(--plot);border:1px solid var(--line);border-radius:6px}
+svg text{fill:var(--muted);font:11px var(--mono)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:14px;height:3px;margin-right:6px;vertical-align:middle;background:var(--c)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">M31 · 2026-11-07 · 80 mm f/4.8 refractor · IMX571 OSC · 120 s subframes</div>
+    <h1>Relation between SNR-Integrated time</h1>
+  </header>
+
+  <section class="viewer" aria-label="Stack comparison">
+    <div class="tabs" role="group" aria-label="Region">
+      <button id="t-core" data-k="core" aria-pressed="true">Core &amp; dust lanes</button>
+      <button id="t-faint" data-k="faint" aria-pressed="false">Outer disc</button>
+      <button id="t-sky" data-k="sky" aria-pressed="false">Background sky</button>
+      <button id="t-full" data-k="full" aria-pressed="false">Full frame (¼ scale)</button>
+    </div>
+    <div class="frame" id="frame">
+      <canvas id="cvR"></canvas>
+      <canvas id="cvL" class="left"></canvas>
+      <div class="divider" id="divider" role="slider" tabindex="0" aria-label="Comparison split" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"></div>
+      <span class="tag l" id="tagL"></span><span class="tag r" id="tagR"></span>
+    </div>
+    <div class="pickers">
+      <div class="panel">
+        <div class="head"><span class="side">Left · integrated minutes</span><span class="stat" id="statL"></span></div>
+        <div class="dial l" id="dialL" role="group" aria-label="Left: integrated time"></div>
+      </div>
+      <div class="panel">
+        <div class="head"><span class="side">Right · integrated minutes</span><span class="stat" id="statR"></span></div>
+        <div class="dial r" id="dialR" role="group" aria-label="Right: integrated time"></div>
+      </div>
+    </div>
+    <div class="panel adjust" aria-label="Display adjustment (applies to both sides)">
+      <label for="aBlack"><span>Black point <output id="oBlack"></output></span><input id="aBlack" type="range" min="-0.10" max="0.40" step="0.01" value="0"></label>
+      <label for="aStretch"><span>Stretch <output id="oStretch"></output></span><input id="aStretch" type="range" min="-1" max="1" step="0.02" value="0"></label>
+      <label for="aSat"><span>Saturation <output id="oSat"></output></span><input id="aSat" type="range" min="0" max="2.5" step="0.05" value="1"></label>
+      <label for="aSharp"><span>Sharpness <output id="oSharp"></output></span><input id="aSharp" type="range" min="0" max="3" step="0.1" value="0"></label>
+      <button class="reset" id="aReset" type="button">Reset</button>
+    </div>
+  </section>
+
+  <section class="charts">
+    <figure>
+      <svg class="plot" id="chNoise" viewBox="0 0 420 280" role="img" aria-label="Sky noise vs integrated time"></svg>
+      <figcaption>Sky noise (1 frame = 1), log–log</figcaption>
+      <div class="legend"><span style="--c:var(--accent)">Measured</span><span style="--c:var(--cool)">1/√t</span></div>
+    </figure>
+    <figure>
+      <svg class="plot" id="chSnr" viewBox="0 0 420 280" role="img" aria-label="Outer-disc SNR vs integrated time"></svg>
+      <figcaption>Outer-disc SNR per pixel</figcaption>
+      <div class="legend"><span style="--c:var(--accent)">Measured</span><span style="--c:var(--cool)">√t</span></div>
+    </figure>
+    <figure class="wide">
+      <svg class="plot" id="chFrames" viewBox="0 0 840 200" role="img" aria-label="Per-frame SNR vs capture time"></svg>
+      <figcaption>Per-frame SNR vs capture time (KST)</figcaption>
+    </figure>
+  </section>
+</div>
+
+<script>
+(function(){
+  const K = ["core","faint","sky","full"];
+  let M = null, N = [1,4,9,16,25,36,49,64,81,100,121];
+  const cur = {k:"core", l:1, r:121, split:50};
+  const adj = {black:0, stretch:0, sat:1, sharp:0};
+  const $ = id => document.getElementById(id);
+  const src = (k,n) => `img/${k}_${String(n).padStart(3,"0")}.jpg`;
+  const exp = () => (M ? M.exptime : 120);
+  const fmtT = s => { const m = Math.round(s/60); return m < 60 ? `${m} min` : `${Math.floor(m/60)} h ${String(m%60).padStart(2,"0")} min`; };
+  const stat = n => { if (!M) return fmtT(n*exp()); const m = M.metrics[n], m1 = M.metrics[1];
+    return `${n} × 120 s · noise ${(m.noise/m1.noise).toFixed(2)} · SNR ${m.faint_snr.toFixed(1)}`; };
+
+  // ---------- image pipeline (canvas) ----------
+  const cache = new Map();             // src -> {w,h,data:Float32Array rgb, blur:Float32Array}
+  function loadImg(url){
+    if (cache.has(url)) return Promise.resolve(cache.get(url));
+    return new Promise((res, rej) => {
+      const im = new Image();
+      im.onload = () => {
+        const w = im.naturalWidth, h = im.naturalHeight, c = document.createElement("canvas");
+        c.width = w; c.height = h; const g = c.getContext("2d"); g.drawImage(im, 0, 0);
+        const px = g.getImageData(0, 0, w, h).data, n = w*h, d = new Float32Array(n*3);
+        for (let i = 0; i < n; i++){ d[i*3] = px[i*4]/255; d[i*3+1] = px[i*4+1]/255; d[i*3+2] = px[i*4+2]/255; }
+        const e = {w, h, data:d, blur:boxBlur(boxBlur(d, w, h), w, h)};
+        cache.set(url, e); res(e);
+      };
+      im.onerror = rej; im.src = url;
+    });
+  }
+  function boxBlur(s, w, h){                // 3x3 box, separable, edges clamped
+    const t = new Float32Array(s.length), o = new Float32Array(s.length);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){ const xl = x ? x-1 : 0, xr = x < w-1 ? x+1 : x;
+      for (let c = 0; c < 3; c++) t[(y*w+x)*3+c] = (s[(y*w+xl)*3+c] + s[(y*w+x)*3+c] + s[(y*w+xr)*3+c]) / 3; }
+    for (let y = 0; y < h; y++){ const yu = y ? y-1 : 0, yd = y < h-1 ? y+1 : y;
+      for (let x = 0; x < w; x++) for (let c = 0; c < 3; c++) o[(y*w+x)*3+c] = (t[(yu*w+x)*3+c] + t[(y*w+x)*3+c] + t[(yd*w+x)*3+c]) / 3; }
+    return o;
+  }
+  function paint(cv, e){
+    if (cv.width !== e.w || cv.height !== e.h){ cv.width = e.w; cv.height = e.h; }
+    const g = cv.getContext("2d"), out = g.createImageData(e.w, e.h), o = out.data, d = e.data, b = e.blur;
+    const bp = adj.black, sc = 1/(1 - bp), sh = adj.sharp, sat = adj.sat;
+    const m = 0.5 - 0.42*adj.stretch;      // midtone balance: <0.5 brightens, >0.5 darkens
+    const mtf = x => x <= 0 ? 0 : x >= 1 ? 1 : ((m - 1)*x) / ((2*m - 1)*x - m);
+    const lut = new Float32Array(1025); for (let i = 0; i <= 1024; i++) lut[i] = mtf(i/1024);
+    const n = e.w*e.h;
+    for (let i = 0; i < n; i++){
+      let r = d[i*3], gg = d[i*3+1], bb = d[i*3+2];
+      if (sh){ r += sh*(r - b[i*3]); gg += sh*(gg - b[i*3+1]); bb += sh*(bb - b[i*3+2]); }
+      r = (r - bp)*sc; gg = (gg - bp)*sc; bb = (bb - bp)*sc;
+      r = lut[Math.max(0, Math.min(1024, (r*1024)|0))]; gg = lut[Math.max(0, Math.min(1024, (gg*1024)|0))]; bb = lut[Math.max(0, Math.min(1024, (bb*1024)|0))];
+      if (sat !== 1){ const L = (r + gg + bb)/3; r = L + sat*(r - L); gg = L + sat*(gg - L); bb = L + sat*(bb - L); }
+      o[i*4] = r*255; o[i*4+1] = gg*255; o[i*4+2] = bb*255; o[i*4+3] = 255;
+    }
+    g.putImageData(out, 0, 0);
+  }
+  let token = 0, pending = false;
+  function draw(){
+    const t = ++token, uL = src(cur.k, cur.l), uR = src(cur.k, cur.r);
+    Promise.all([loadImg(uL), loadImg(uR)]).then(([eL, eR]) => { if (t !== token) return; paint($("cvL"), eL); paint($("cvR"), eR); });
+  }
+  function redraw(){ if (pending) return; pending = true; requestAnimationFrame(() => { pending = false; draw(); }); }
+
+  function render(){
+    const fr = $("frame");
+    fr.classList.toggle("full", cur.k === "full");
+    fr.style.setProperty("--split", cur.split + "%");
+    $("divider").setAttribute("aria-valuenow", Math.round(cur.split));
+    $("tagL").textContent = fmtT(cur.l*exp()); $("tagR").textContent = fmtT(cur.r*exp());
+    $("statL").textContent = stat(cur.l); $("statR").textContent = stat(cur.r);
+    K.forEach(k => $("t-"+k).setAttribute("aria-pressed", k === cur.k));
+    [["dialL","l"],["dialR","r"]].forEach(([id, side]) =>
+      [...$(id).children].forEach(b => b.setAttribute("aria-pressed", +b.dataset.n === cur[side])));
+  }
+  function buildDials(){
+    [["dialL","l"],["dialR","r"]].forEach(([id, side]) => {
+      const d = $(id); d.textContent = "";
+      N.forEach(n => { const b = document.createElement("button");
+        b.id = `${id}-${n}`; b.dataset.n = n; b.textContent = Math.round(n*exp()/60);
+        b.title = `${n} frames, ${fmtT(n*exp())}`;
+        b.addEventListener("click", () => { cur[side] = n; render(); redraw(); });
+        d.appendChild(b); });
+    });
+  }
+  (function(){
+    const fr = $("frame"); let drag = false;
+    const set = x => { const r = fr.getBoundingClientRect(); cur.split = Math.max(0, Math.min(100, 100*(x - r.left)/r.width)); render(); };
+    fr.addEventListener("pointerdown", e => { drag = true; fr.setPointerCapture(e.pointerId); set(e.clientX); });
+    fr.addEventListener("pointermove", e => { if (drag) set(e.clientX); });
+    fr.addEventListener("pointerup", () => drag = false);
+    $("divider").addEventListener("keydown", e => {
+      if (e.key === "ArrowLeft") { cur.split = Math.max(0, cur.split - 5); render(); }
+      if (e.key === "ArrowRight") { cur.split = Math.min(100, cur.split + 5); render(); } });
+  })();
+  K.forEach(k => $("t-"+k).addEventListener("click", () => { cur.k = k; render(); redraw(); }));
+
+  const sliders = [["aBlack","oBlack","black",v => v.toFixed(2)], ["aStretch","oStretch","stretch",v => (v>0?"+":"") + v.toFixed(2)],
+                   ["aSat","oSat","sat",v => v.toFixed(2) + "×"], ["aSharp","oSharp","sharp",v => v.toFixed(1)]];
+  function syncSliders(){ sliders.forEach(([i,o,k,f]) => { $(i).value = adj[k]; $(o).textContent = f(adj[k]); }); }
+  sliders.forEach(([i,o,k,f]) => $(i).addEventListener("input", () => { adj[k] = parseFloat($(i).value); $(o).textContent = f(adj[k]); redraw(); }));
+  $("aReset").addEventListener("click", () => { adj.black = 0; adj.stretch = 0; adj.sat = 1; adj.sharp = 0; syncSliders(); redraw(); });
+
+  // ---------- charts ----------
+  const NS = "http://www.w3.org/2000/svg";
+  function el(svg, tag, a, txt){ const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); if (txt != null) e.textContent = txt; svg.appendChild(e); return e; }
+  function axes(svg, W, H, p, xs, ys, xt, yt, xl, yl){
+    yt.forEach(v => { const y = ys(v); el(svg, "line", {x1:p.l, x2:W-p.r, y1:y, y2:y, stroke:"var(--line)", "stroke-width":1});
+      el(svg, "text", {x:p.l-6, y:y+4, "text-anchor":"end"}, yl(v)); });
+    xt.forEach(v => { const x = xs(v); el(svg, "line", {x1:x, x2:x, y1:H-p.b, y2:H-p.b+4, stroke:"var(--muted)"});
+      el(svg, "text", {x, y:H-p.b+17, "text-anchor":"middle"}, xl(v)); });
+    el(svg, "line", {x1:p.l, x2:W-p.r, y1:H-p.b, y2:H-p.b, stroke:"var(--muted)"});
+  }
+  function line(svg, pts, color, dash){ el(svg, "path", {d: pts.map((q,i) => (i?"L":"M") + q[0].toFixed(1) + " " + q[1].toFixed(1)).join(""), fill:"none", stroke:color, "stroke-width":2, "stroke-dasharray": dash||""}); }
+  function dots(svg, pts, color, r){ pts.forEach(q => el(svg, "circle", {cx:q[0], cy:q[1], r:r||4, fill:color})); }
+
+  function charts(){
+    const W = 420, H = 280, p = {l:48, r:14, t:14, b:34};
+    const T = N.map(n => n*exp()/60), t0 = T[0], t1 = T[T.length-1];      // minutes
+    let s = $("chNoise"); s.textContent = "";
+    const rel = N.map(n => M.metrics[n].noise / M.metrics[1].noise);
+    const lx = v => p.l + (Math.log(v) - Math.log(t0)) / (Math.log(t1) - Math.log(t0)) * (W - p.l - p.r);
+    const ymin = Math.min(...rel, Math.sqrt(t0/t1)) * 0.8;
+    const ly = v => p.t + (Math.log(1.1) - Math.log(v)) / (Math.log(1.1) - Math.log(ymin)) * (H - p.t - p.b);
+    axes(s, W, H, p, lx, ly, [2,8,18,32,72,128,242], [1,0.5,0.25,0.125].filter(v => v > ymin), String, String);
+    const th = []; for (let i = 0; i <= 60; i++){ const t = Math.exp(Math.log(t0) + i/60*(Math.log(t1)-Math.log(t0))); th.push([lx(t), ly(Math.sqrt(t0/t))]); }
+    line(s, th, "var(--cool)", "5 4"); dots(s, T.map((t,i) => [lx(t), ly(rel[i])]), "var(--accent)");
+    el(s, "text", {x:W-p.r, y:H-4, "text-anchor":"end"}, "integrated time (min)");
+
+    s = $("chSnr"); s.textContent = "";
+    const sn = N.map(n => M.metrics[n].faint_snr), s1 = M.metrics[1].faint_snr;
+    const smax = Math.max(...sn, s1*Math.sqrt(t1/t0)) * 1.08;
+    const xx = v => p.l + v / t1 * (W - p.l - p.r), yy = v => H - p.b - v / smax * (H - p.t - p.b);
+    const step = smax > 40 ? 10 : smax > 20 ? 5 : 2; const yt = []; for (let v = 0; v < smax; v += step) yt.push(v);
+    axes(s, W, H, p, xx, yy, [0,60,120,180,240], yt, String, String);
+    const th2 = []; for (let i = 0; i <= 80; i++){ const t = t0 + i/80*(t1 - t0); th2.push([xx(t), yy(s1*Math.sqrt(t/t0))]); }
+    line(s, th2, "var(--cool)", "5 4"); dots(s, T.map((t,i) => [xx(t), yy(sn[i])]), "var(--accent)");
+    el(s, "text", {x:W-p.r, y:H-4, "text-anchor":"end"}, "integrated time (min)");
+
+    s = $("chFrames"); s.textContent = "";
+    const FW = 840, FH = 200, q = {l:48, r:14, t:14, b:30};
+    const fr = M.frames.filter(f => f.time).map(f => ({t: Date.parse(f.time + "Z") + 9*3600e3, snr: f.snr}));
+    const tmin = Math.min(...fr.map(f => f.t)), tmax = Math.max(...fr.map(f => f.t));
+    const fmin = Math.min(...fr.map(f => f.snr)) * 0.95, fmax = Math.max(...fr.map(f => f.snr)) * 1.04;
+    const fx = v => q.l + (v - tmin) / (tmax - tmin) * (FW - q.l - q.r), fy = v => FH - q.b - (v - fmin) / (fmax - fmin) * (FH - q.t - q.b);
+    const hour = 3600e3, xt = []; for (let v = Math.ceil(tmin/hour)*hour; v <= tmax; v += hour) xt.push(v);
+    const ft = []; const st = (fmax - fmin) > 40 ? 20 : (fmax - fmin) > 20 ? 10 : 5; for (let v = Math.ceil(fmin/st)*st; v < fmax; v += st) ft.push(v);
+    const hhmm = v => { const d = new Date(v); return String(d.getUTCHours()).padStart(2,"0") + ":" + String(d.getUTCMinutes()).padStart(2,"0"); };
+    axes(s, FW, FH, q, fx, fy, xt, ft, hhmm, String);
+    dots(s, fr.map(f => [fx(f.t), fy(f.snr)]), "var(--accent)", 3.2);
+    el(s, "text", {x:FW-q.r, y:FH-4, "text-anchor":"end"}, "local time (KST)");
+  }
+
+  syncSliders(); buildDials(); render(); redraw();
+  fetch("metrics.json").then(r => r.json()).then(j => { M = j; N = j.N; buildDials(); charts(); render(); }).catch(() => {});
+})();
+</script>
+</body>
+</html>
