@@ -6,3 +6,5 @@ against integrated time.
 
 Open `index.html` (GitHub Pages). Display sliders (black point, stretch, saturation, sharpness) apply
 to both sides of the comparison in the browser.
+
+Link: https://jykim7289.github.io/m31-snr-integration/
